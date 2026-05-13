@@ -11,7 +11,7 @@ BLUE='\033[0;34m'
 NC='\033[0m'
 
 # ⚠️ MODIFIER CETTE URL avec votre lien GitHub raw du fichier sync.py
-SCRIPT_URL="https://raw.githubusercontent.com/VOTRE_USER/hanvon-sync/main/sync.py"
+SCRIPT_URL="https://raw.githubusercontent.com/saadaouiaro-sketch/hanvon-sync/main/sync.py"
 
 # ═══════════════════════════════════════════════════════════
 echo ""
