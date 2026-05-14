@@ -1,6 +1,6 @@
 #!/data/data/com.termux/files/usr/bin/bash
 # ═══════════════════════════════════════════════════════════
-# 🚀 INSTALLATION AUTOMATIQUE — Sync Hanvon F710X
+# 🚀 INSTALLATION AUTOMATIQUE — Sync Hanvon F710X (v2)
 # ═══════════════════════════════════════════════════════════
 
 # Couleurs
@@ -10,8 +10,11 @@ RED='\033[0;31m'
 BLUE='\033[0;34m'
 NC='\033[0m'
 
-# ⚠️ MODIFIER CETTE URL avec votre lien GitHub raw du fichier sync.py
+# URL du script Python à télécharger
 SCRIPT_URL="https://raw.githubusercontent.com/saadaouiaro-sketch/hanvon-sync/main/sync.py"
+
+# 🔧 IMPORTANT : Rediriger l'input vers le terminal (résout le problème de curl | bash)
+exec < /dev/tty
 
 # ═══════════════════════════════════════════════════════════
 echo ""
@@ -41,7 +44,16 @@ echo -e "${GREEN}✅ Paquets à jour${NC}"
 echo ""
 echo -e "${YELLOW}▶ Étape 2/6 — Installation de Python...${NC}"
 pkg install -y python curl > /dev/null 2>&1
-echo -e "${GREEN}✅ Python installé : $(python --version 2>&1)${NC}"
+
+# Vérifier que Python est bien installé
+if command -v python > /dev/null 2>&1; then
+    PYTHON_VERSION=$(python --version 2>&1)
+    echo -e "${GREEN}✅ Python installé : $PYTHON_VERSION${NC}"
+else
+    echo -e "${RED}❌ Erreur : Python n'a pas pu être installé.${NC}"
+    echo -e "${YELLOW}   Essayez : pkg install python${NC}"
+    exit 1
+fi
 
 # ═══════════════════════════════════════════════════════════
 # ÉTAPE 3 : Installation requests
@@ -50,7 +62,13 @@ echo ""
 echo -e "${YELLOW}▶ Étape 3/6 — Installation des bibliothèques...${NC}"
 pip install --upgrade pip > /dev/null 2>&1
 pip install requests > /dev/null 2>&1
-echo -e "${GREEN}✅ Bibliothèques installées${NC}"
+
+if python -c "import requests" 2>/dev/null; then
+    echo -e "${GREEN}✅ Bibliothèques installées${NC}"
+else
+    echo -e "${RED}❌ Erreur : requests n'a pas pu être installé.${NC}"
+    exit 1
+fi
 
 # ═══════════════════════════════════════════════════════════
 # ÉTAPE 4 : Téléchargement du script
@@ -76,22 +94,40 @@ echo ""
 echo -e "${BLUE}Renseignez les infos de ce site :${NC}"
 echo ""
 
-read -p "📍 Nom du site (ex: EXT OFICINA) : " SITE_NAME
-read -p "🆔 ID du site (ex: SITE01) : " SITE_ID
-read -p "📡 IP du Hanvon (ex: 192.168.20.214) : " HANVON_IP
-read -p "🔌 Port du Hanvon [9922] : " HANVON_PORT
-HANVON_PORT=${HANVON_PORT:-9922}
+# Boucles pour s'assurer qu'on a bien des réponses
+while true; do
+    read -p "📍 Nom du site (ex: EXT OFICINA) : " SITE_NAME
+    if [ -n "$SITE_NAME" ]; then break; fi
+    echo -e "${RED}   Le nom ne peut pas être vide.${NC}"
+done
 
-# Test rapide de connexion au Hanvon
+while true; do
+    read -p "🆔 ID du site (ex: SITE01) : " SITE_ID
+    if [ -n "$SITE_ID" ]; then break; fi
+    echo -e "${RED}   L'ID ne peut pas être vide.${NC}"
+done
+
+while true; do
+    read -p "📡 IP du Hanvon (ex: 192.168.20.214) : " HANVON_IP
+    if [ -n "$HANVON_IP" ]; then break; fi
+    echo -e "${RED}   L'IP ne peut pas être vide.${NC}"
+done
+
+read -p "🔌 Port du Hanvon [9922] : " HANVON_PORT
+if [ -z "$HANVON_PORT" ]; then
+    HANVON_PORT="9922"
+fi
+
+# Test de connexion au Hanvon
 echo ""
 echo -e "${BLUE}🧪 Test de connexion à $HANVON_IP:$HANVON_PORT...${NC}"
-if timeout 5 bash -c "</dev/tcp/$HANVON_IP/$HANVON_PORT" 2>/dev/null; then
+if timeout 5 bash -c "cat < /dev/null > /dev/tcp/$HANVON_IP/$HANVON_PORT" 2>/dev/null; then
     echo -e "${GREEN}✅ Hanvon accessible !${NC}"
 else
-    echo -e "${RED}⚠️  Hanvon non accessible.${NC}"
+    echo -e "${YELLOW}⚠️  Hanvon non accessible.${NC}"
     echo -e "${YELLOW}   Vérifiez que le téléphone est sur le bon WiFi.${NC}"
     read -p "   Continuer quand même ? (o/n) : " continuer
-    if [ "$continuer" != "o" ]; then
+    if [ "$continuer" != "o" ] && [ "$continuer" != "O" ]; then
         echo -e "${RED}Installation annulée.${NC}"
         exit 1
     fi
@@ -122,8 +158,6 @@ python ~/sync.py >> ~/sync_boot.log 2>&1
 EOF
 
 chmod +x ~/.termux/boot/start-sync.sh
-
-# Activer le wake-lock immédiatement
 termux-wake-lock 2>/dev/null || true
 
 echo -e "${GREEN}✅ Démarrage automatique configuré${NC}"
@@ -144,7 +178,7 @@ echo "   • Logs    : ~/sync_log.txt"
 echo ""
 echo -e "${YELLOW}⚠️  ACTIONS MANUELLES IMPORTANTES :${NC}"
 echo ""
-echo "   1. Ouvrir l'app Termux:Boot UNE FOIS depuis l'écran d'accueil"
+echo "   1. Ouvrir l'app Termux:Boot UNE FOIS"
 echo ""
 echo "   2. Paramètres Android → Applications → Termux"
 echo "      → Batterie → Sans restriction"
