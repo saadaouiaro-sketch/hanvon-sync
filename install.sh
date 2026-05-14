@@ -1,6 +1,6 @@
 #!/data/data/com.termux/files/usr/bin/bash
 # ═══════════════════════════════════════════════════════════
-# 🚀 INSTALLATION AUTOMATIQUE — Sync Hanvon F710X (v2)
+# 🚀 INSTALLATION AUTOMATIQUE — Sync Hanvon F710X (v3)
 # ═══════════════════════════════════════════════════════════
 
 # Couleurs
@@ -13,7 +13,7 @@ NC='\033[0m'
 # URL du script Python à télécharger
 SCRIPT_URL="https://raw.githubusercontent.com/saadaouiaro-sketch/hanvon-sync/main/sync.py"
 
-# 🔧 IMPORTANT : Rediriger l'input vers le terminal (résout le problème de curl | bash)
+# 🔧 IMPORTANT : Rediriger l'input vers le terminal
 exec < /dev/tty
 
 # ═══════════════════════════════════════════════════════════
@@ -39,35 +39,54 @@ pkg upgrade -y > /dev/null 2>&1
 echo -e "${GREEN}✅ Paquets à jour${NC}"
 
 # ═══════════════════════════════════════════════════════════
-# ÉTAPE 2 : Installation Python
+# ÉTAPE 2 : Installation Python (vérification améliorée)
 # ═══════════════════════════════════════════════════════════
 echo ""
 echo -e "${YELLOW}▶ Étape 2/6 — Installation de Python...${NC}"
-pkg install -y python curl > /dev/null 2>&1
 
-# Vérifier que Python est bien installé
-if command -v python > /dev/null 2>&1; then
-    PYTHON_VERSION=$(python --version 2>&1)
-    echo -e "${GREEN}✅ Python installé : $PYTHON_VERSION${NC}"
+# Vérifier si Python est déjà installé
+if python --version > /dev/null 2>&1; then
+    echo -e "${GREEN}✅ Python déjà installé : $(python --version 2>&1)${NC}"
 else
-    echo -e "${RED}❌ Erreur : Python n'a pas pu être installé.${NC}"
-    echo -e "${YELLOW}   Essayez : pkg install python${NC}"
-    exit 1
+    # Sinon, on l'installe
+    pkg install -y python > /dev/null 2>&1
+    
+    # Recharger le PATH après installation
+    export PATH="/data/data/com.termux/files/usr/bin:$PATH"
+    hash -r
+    
+    # Vérifier à nouveau
+    if python --version > /dev/null 2>&1; then
+        echo -e "${GREEN}✅ Python installé : $(python --version 2>&1)${NC}"
+    else
+        echo -e "${RED}❌ Erreur : Python n'a pas pu être installé.${NC}"
+        echo -e "${YELLOW}   Essayez manuellement : pkg install python${NC}"
+        exit 1
+    fi
 fi
+
+# Installer curl au passage si pas déjà fait
+pkg install -y curl > /dev/null 2>&1
 
 # ═══════════════════════════════════════════════════════════
 # ÉTAPE 3 : Installation requests
 # ═══════════════════════════════════════════════════════════
 echo ""
 echo -e "${YELLOW}▶ Étape 3/6 — Installation des bibliothèques...${NC}"
-pip install --upgrade pip > /dev/null 2>&1
-pip install requests > /dev/null 2>&1
 
+# Vérifier si requests est déjà installé
 if python -c "import requests" 2>/dev/null; then
-    echo -e "${GREEN}✅ Bibliothèques installées${NC}"
+    echo -e "${GREEN}✅ Bibliothèque requests déjà installée${NC}"
 else
-    echo -e "${RED}❌ Erreur : requests n'a pas pu être installé.${NC}"
-    exit 1
+    pip install --upgrade pip > /dev/null 2>&1
+    pip install requests > /dev/null 2>&1
+    
+    if python -c "import requests" 2>/dev/null; then
+        echo -e "${GREEN}✅ Bibliothèques installées${NC}"
+    else
+        echo -e "${RED}❌ Erreur : requests n'a pas pu être installé.${NC}"
+        exit 1
+    fi
 fi
 
 # ═══════════════════════════════════════════════════════════
@@ -76,11 +95,17 @@ fi
 echo ""
 echo -e "${YELLOW}▶ Étape 4/6 — Téléchargement du script sync.py...${NC}"
 cd ~
+
+# Si sync.py existe déjà, faire une sauvegarde
+if [ -f sync.py ]; then
+    cp sync.py sync.py.backup
+    echo -e "${BLUE}ℹ️  Ancien sync.py sauvegardé en sync.py.backup${NC}"
+fi
+
 curl -sL "$SCRIPT_URL" -o sync.py
 
 if [ ! -s sync.py ]; then
     echo -e "${RED}❌ Échec du téléchargement.${NC}"
-    echo -e "${RED}   Vérifiez votre connexion Internet ou l'URL.${NC}"
     exit 1
 fi
 echo -e "${GREEN}✅ Script téléchargé${NC}"
@@ -94,7 +119,6 @@ echo ""
 echo -e "${BLUE}Renseignez les infos de ce site :${NC}"
 echo ""
 
-# Boucles pour s'assurer qu'on a bien des réponses
 while true; do
     read -p "📍 Nom du site (ex: EXT OFICINA) : " SITE_NAME
     if [ -n "$SITE_NAME" ]; then break; fi
